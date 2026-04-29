@@ -1,0 +1,14 @@
+
+services:
+  xihulutv:
+    build: .
+    container_name: xihulutv
+    restart: unless-stopped
+    ports:
+    - "3000:3000"
+    environment:
+    #- PORT=3000
+    - ADMIN_PASSWORD=admin
+    volumes:
+    - ./public:/app/public
+      - ./data:/app/data

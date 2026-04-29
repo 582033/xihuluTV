@@ -1,0 +1,14 @@
+{
+  "sites": [
+    {
+      "key": "example",
+      "name": "影视源名称",
+      "api": "https://xx.com/api.php/provide/vod",
+      "active": true
+    }
+  ],
+  "config": {
+    "tmdb_api_key": "此处填写TMDB API Key",
+    "tmdb_proxy": "此处填写TMDB代理",
+  }
+}

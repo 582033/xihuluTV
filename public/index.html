@@ -22,6 +22,9 @@
 <body>
 
     <div id="app">
+        <!-- Toast 通知 -->
+        <div id="toast-container" style="position:fixed;top:80px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;"></div>
+
         <!-- 顶部横向常规导航 -->
         <nav class="navbar-top">
             <div class="brand" @click="goTo('/')">
@@ -36,6 +39,7 @@
 
             <div class="nav-right">
                 <a href="/admin.html" target="_blank" class="nav-link"><i class="fas fa-cog"></i> 管理</a>
+                <button id="darkModeToggle" style="background:transparent;border:none;color:#555;padding:5px 10px;cursor:pointer;"><i class="fas fa-moon"></i></button>
             </div>
         </nav>
 
@@ -55,6 +59,13 @@
                 </transition>
             </router-view>
         </main>
+        <!-- 返回顶部按钮 -->
+        <transition name="fade">
+            <button v-if="showBackToTop" @click="scrollToTop" id="backToTopBtn"
+                style="position:fixed;bottom:30px;right:30px;width:44px;height:44px;border-radius:50%;background:var(--accent);color:#fff;border:none;box-shadow:0 2px 12px rgba(0,161,214,0.4);cursor:pointer;z-index:1000;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-arrow-up"></i>
+            </button>
+        </transition>
     </div>
 
     <!-- ========================= -->
@@ -63,9 +74,9 @@
     <template id="tmpl-home">
         <div class="page-home" style="padding-top:20px;">
             <div v-if="!hasSites" class="empty-state" style="margin-top: 80px; padding: 40px; text-align: center;">
-                <i class="fas fa-satellite-dish" style="font-size: 60px; margin-bottom: 20px; color: #c0c4cc;"></i>
-                <h3 style="margin-bottom: 15px; font-weight: bold; color: #555;">数据设置未就绪</h3>
-                <p style="color: #888; font-size: 15px;">当前数据库中未激活任何资源节点。<br>请前往 <a href="/admin.html" target="_blank"
+                <i class="fas fa-satellite-dish" style="font-size: 60px; margin-bottom: 20px; color: var(--text-sub);"></i>
+                <h3 style="margin-bottom: 15px; font-weight: bold; color: var(--text-main);">数据设置未就绪</h3>
+                <p style="color: var(--text-sub); font-size: 15px;">当前数据库中未激活任何资源节点。<br>请前往 <a href="/admin.html" target="_blank"
                         style="color:var(--accent); font-weight:bold; text-decoration:none;">管理后台</a> 设置影视源及 TMDB APIKey
                     后刷新生效。</p>
             </div>
@@ -82,7 +93,7 @@
                         @click="playNow(item.title || item.name)">
                         <div class="video-cover">
                             <img :src="getCover(item.poster_path)" loading="lazy">
-                            <div class="rating-tag">{{ item.vote_average.toFixed(1) }} 分</div>
+                            <div v-if="item.vote_average > 0" class="rating-tag">{{ item.vote_average.toFixed(1) }}</div>
                         </div>
                         <div class="video-name">{{ item.title || item.name }}</div>
                         <div class="video-text">{{ (item.release_date || item.first_air_date || '').split('-')[0] }}
@@ -107,7 +118,7 @@
             <div v-if="loading" class="result-grid">
                 <div v-for="i in 18" :key="'sk'+i">
                     <div class="skeleton-card"></div>
-                    <div style="height:14px; width:70%; background:#f0f2f5; margin-top:10px; border-radius:2px;"></div>
+                    <div style="height:14px; width:70%; background:var(--skeleton-bg); margin-top:10px; border-radius:2px;"></div>
                 </div>
             </div>
 
@@ -119,10 +130,10 @@
                         <img v-if="!isFallback(group.name)" :src="getPoster(group)" @error="handleImgError(group.name)"
                             loading="lazy" referrerpolicy="no-referrer">
                         <div v-else
-                            style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#e3e5e7; color:#a0a0a0;">
-                            <i class="fas fa-image" style="font-size:24px;"></i>
+                            style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--cover-bg); color:var(--text-sub);">
+                            <i class="fas fa-film" style="font-size:32px;margin-bottom:8px;"></i>
+                            <span style="font-size:12px;">暂无封面</span>
                         </div>
-                        <!-- 右上角角标，多少个资源节点 -->
                         <div class="node-tag">{{ group.sources.length }} 个节点</div>
                     </div>
                     <div class="video-name">{{ group.name }}</div>
@@ -131,7 +142,7 @@
             </div>
 
             <div v-else class="empty-state">
-                <i class="fas fa-box-open" style="font-size: 40px; margin-bottom: 15px; color: #c0c4cc;"></i>
+                <i class="fas fa-box-open" style="font-size: 40px; margin-bottom: 15px; color: var(--text-sub);"></i>
                 <h3>未找到相关内容</h3>
                 <p>没有找到 "{{ searchWord }}" 相关的数据，请换个词试试。</p>
             </div>
@@ -152,7 +163,7 @@
             <div v-if="loading" class="result-grid">
                 <div v-for="i in 18" :key="'sk'+i">
                     <div class="skeleton-card"></div>
-                    <div style="height:14px; width:70%; background:#f0f2f5; margin-top:10px; border-radius:2px;"></div>
+                    <div style="height:14px; width:70%; background:var(--skeleton-bg); margin-top:10px; border-radius:2px;"></div>
                 </div>
             </div>
 
@@ -162,7 +173,7 @@
                     style="width:100%;">
                     <div class="video-cover">
                         <img :src="getCover(item.poster_path)" loading="lazy">
-                        <div class="rating-tag">{{ item.vote_average.toFixed(1) }} 分</div>
+                        <div v-if="item.vote_average > 0" class="rating-tag">{{ item.vote_average.toFixed(1) }}</div>
                     </div>
                     <div class="video-name">{{ item.title || item.name }}</div>
                     <div class="video-text">{{ (item.release_date || item.first_air_date || '').split('-')[0] }}</div>
@@ -211,10 +222,12 @@
                         <div v-for="source in groupSources" :key="source.site_key" class="source-tag"
                             :class="{ active: currentSource?.site_key === source.site_key }"
                             @click="switchSource(source)">
-                            {{ source.site_name }}
-                            <span class="dot" :class="getLatencyClass(source.latency)"></span>
-                            <span style="font-size:12px; opacity:0.8;">{{ source.latency === 9999 ? '...' :
-                                source.latency+'ms' }}</span>
+                            <span v-if="source.loading" class="spinner-border spinner-border-sm" style="width:12px;height:12px;border-width:2px;"></span>
+                            <template v-else>
+                                {{ source.site_name }}
+                                <span class="dot" :class="getLatencyClass(source.latency)"></span>
+                                <span style="font-size:12px; opacity:0.8;">{{ source.latency === 9999 ? '超时' : (source.latency ? source.latency+'ms' : '...') }}</span>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -223,7 +236,8 @@
                 <div>
                     <div class="panel-sub-title"><i class="fas fa-list-ul"></i> 节目选集</div>
                     <div v-if="loadingDetail" style="padding: 40px; text-align:center; color:var(--text-sub);">
-                        <i class="fas fa-spinner fa-spin"></i> 正在获取分集列表...
+                        <div class="spinner-border text-primary" role="status" style="width:30px;height:30px;border-width:3px;margin:0 auto;"></div>
+                        <div style="margin-top:12px;">正在获取分集列表...</div>
                     </div>
                     <div v-else class="ep-list">
                         <div v-for="ep in episodeList" :key="ep.url" class="ep-item"
@@ -239,6 +253,42 @@
     <script>
         const { createApp, reactive, ref, onMounted, nextTick, computed, onUnmounted, watch } = Vue;
         const { createRouter, createWebHashHistory, useRouter, useRoute } = VueRouter;
+
+        // Toast 通知系统
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            const icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle', warning: 'fa-exclamation-circle' };
+            const colors = { success: '#67c23a', error: '#f56c6c', info: '#909399', warning: '#e6a23c' };
+            toast.style.cssText = `display:flex;align-items:center;gap:10px;padding:12px 20px;background:#fff;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);font-size:14px;max-width:300px;animation:slideIn 0.3s ease;`;
+            toast.innerHTML = `<i class="fas ${icons[type]}" style="color:${colors[type]};font-size:18px;"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 300); }, duration);
+        }
+        if (!document.getElementById('toast-animations')) {
+            const style = document.createElement('style');
+            style.id = 'toast-animations';
+            style.textContent = `@keyframes slideIn { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }`;
+            document.head.appendChild(style);
+        }
+
+        // Dark mode
+        function initDarkMode() {
+            const saved = localStorage.getItem('darkMode');
+            const isDark = saved === 'true' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            applyDarkMode(isDark);
+        }
+        function applyDarkMode(isDark) {
+            if (isDark) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+            localStorage.setItem('darkMode', isDark);
+            const btn = document.getElementById('darkModeToggle');
+            if (btn) btn.innerHTML = `<i class="fas fa-${isDark ? 'sun' : 'moon'}"></i>`;
+        }
 
         // 获取后动态分配的配置
         let MY_PROXY = "";
@@ -496,6 +546,8 @@
                 onUnmounted(() => { if (art) art.destroy(); }); // Destroy player
 
                 const switchSource = async (source) => {
+                    if (source.loading) return;
+                    source.loading = true;
                     currentSource.value = source;
                     loadingDetail.value = true;
                     episodeList.value = [];
@@ -503,7 +555,8 @@
                         const res = await fetch(`/api/detail?site_key=${source.site_key}&id=${source.vod_id}`);
                         const data = await res.json();
                         if (data.list && data.list.length > 0) parseEpisodes(data.list[0].vod_play_url);
-                    } catch (e) { }
+                    } catch (e) { showToast("获取分集列表失败", "error"); }
+                    source.loading = false;
                     loadingDetail.value = false;
                 };
 
@@ -565,7 +618,7 @@
                                             if (window.WebKitPlaybackTargetAvailabilityEvent) {
                                                 art.video.webkitShowPlaybackTargetPicker();
                                             } else {
-                                                alert("提示: 安卓及部分设备不支持纯网页投屏。建议您：\n1. 点击浏览器自带的【视频投屏】功能\n2. 下载专注投屏的浏览器 (如夸克/UC)\n3. 复制网页链接到【电视控】等投屏App中打开播放");
+                                                showToast("部分设备不支持纯网页投屏，建议使用浏览器自带投屏功能", "warning");
                                             }
                                         }
                                     }
@@ -601,10 +654,19 @@
                 const r = useRouter();
                 const globalKeyword = ref('');
                 const isMobile = ref(false);
+                const showBackToTop = ref(false);
 
                 onMounted(() => {
                     isMobile.value = window.innerWidth <= 768;
                     window.addEventListener('resize', () => isMobile.value = window.innerWidth <= 768);
+                    initDarkMode();
+                    document.getElementById('darkModeToggle').addEventListener('click', () => {
+                        const isDark = localStorage.getItem('darkMode') === 'true';
+                        applyDarkMode(!isDark);
+                    });
+                    window.addEventListener('scroll', () => {
+                        showBackToTop.value = window.scrollY > 400;
+                    }, { passive: true });
                 });
 
                 const execSearch = () => {
@@ -613,7 +675,9 @@
                     }
                 };
 
-                return { globalKeyword, execSearch, goTo: (p) => r.push(p), isMobile };
+                const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                return { globalKeyword, execSearch, goTo: (p) => r.push(p), isMobile, showBackToTop, scrollToTop };
             }
         };
 
@@ -629,7 +693,7 @@
             // 当配置拉取完毕后挂载视图层以防数据加载空转
             createApp(App).use(router).mount('#app');
         }).catch(e => {
-            alert("严重错误: 无法获取后端配置，请检查服务端状态!");
+            showToast("无法获取后端配置，请检查服务端状态!", "error", 5000);
         });
     </script>
 </body>

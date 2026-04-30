@@ -13,17 +13,27 @@
             border-left: 4px solid #0d6efd;
             font-weight: bold;
         }
-
-        .sidebar {
-            z-index: 100;
-            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
-        }
+        .sidebar { z-index: 100; box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1); }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); font-size: 14px; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        .toast-success { color: #67c23a; }
+        .toast-error { color: #f56c6c; }
+        .toast-info { color: #909399; }
+        .toast-warning { color: #e6a23c; }
+        .site-input { background: transparent !important; border: 1px solid transparent !important; transition: 0.2s; }
+        .site-input:hover { border-color: #dee2e6 !important; background: #f8f9fa !important; }
+        .site-input:focus { border-color: #0d6efd !important; background: #fff !important; outline: none; }
+        .unsaved-indicator { width: 8px; height: 8px; border-radius: 50%; background: #e6a23c; display: inline-block; margin-right: 8px; }
     </style>
 </head>
 
 <body class="bg-light">
 
     <div id="app">
+        <!-- Toast 通知 -->
+        <div class="toast-container" id="toastContainer"></div>
+
         <!-- 登录界面 -->
         <div v-if="!isLoggedIn" class="container mt-5">
             <div class="card mx-auto shadow-sm border-0" style="max-width: 400px; border-radius:12px;">
@@ -47,9 +57,12 @@
             <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
                 <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6" href="#"><i
                         class="fas fa-film text-warning"></i> 管理后台</a>
-                <div class="navbar-nav">
+                <div class="navbar-nav flex-row align-items-center">
+                    <div v-if="hasUnsavedChanges" class="nav-link px-3" style="color: #e6a23c;">
+                        <span class="unsaved-indicator"></span>未保存
+                    </div>
                     <div class="nav-item text-nowrap">
-                        <a class="nav-link px-3" href="#" @click="isLoggedIn = false">安全退出 <i
+                        <a class="nav-link px-3" href="#" @click.prevent="handleLogout">安全退出 <i
                                 class="fas fa-sign-out-alt"></i></a>
                     </div>
                 </div>
@@ -82,7 +95,7 @@
                     <div v-if="activeMenu==='sys'">
                         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
                             <h3 class="fw-bold">TMDB 设置</h3>
-                            <button class="btn btn-success px-4" @click="saveConfig"><i class="fas fa-save me-1"></i>
+                            <button class="btn btn-success px-4" @click="saveConfig" :disabled="!hasUnsavedConfigChanges"><i class="fas fa-save me-1"></i>
                                 保存</button>
                         </div>
                         <div class="card shadow-sm border-0 rounded-3">
@@ -114,10 +127,10 @@
                     <div v-else-if="activeMenu==='source'">
                         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center mb-4">
                             <h3 class="fw-bold">资源设置</h3>
-                            <div>
-                                <button class="btn btn-outline-primary shadow-sm rounded-pill px-3 me-2"
-                                    @click="addSite"><i class="fas fa-plus"></i> 新增接口</button>
-                                <button class="btn btn-primary shadow-sm rounded-pill px-4" @click="saveSites"><i
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-primary shadow-sm rounded-pill px-3"
+                                    @click="addSite"><i class="fas fa-plus"></i> 新增</button>
+                                <button class="btn btn-primary shadow-sm rounded-pill px-4" @click="saveSites" :disabled="!hasUnsavedChanges"><i
                                         class="fas fa-save"></i> 保存</button>
                             </div>
                         </div>
@@ -125,7 +138,7 @@
                             <table class="table table-hover align-middle mb-0" style="font-size:14px;">
                                 <thead class="table-light">
                                     <tr>
-                                        <th class="ps-4">开关</th>
+                                        <th class="ps-4">状态</th>
                                         <th>Key</th>
                                         <th>名称</th>
                                         <th>接口地址</th>
@@ -141,11 +154,11 @@
                                             </div>
                                         </td>
                                         <td><input type="text" v-model="site.key"
-                                                class="form-control bg-light border-0"></td>
+                                                class="form-control site-input"></td>
                                         <td><input type="text" v-model="site.name"
-                                                class="form-control bg-light border-0 fw-bold"></td>
+                                                class="form-control site-input fw-bold"></td>
                                         <td><input type="text" v-model="site.api"
-                                                class="form-control text-muted border-0 bg-transparent"></td>
+                                                class="form-control site-input text-muted"></td>
                                         <td class="text-end pe-4">
                                             <button class="btn btn-light text-danger btn-sm rounded-circle p-2 px-3"
                                                 @click="removeSite(index)"><i class="fas fa-trash"></i></button>
@@ -169,10 +182,56 @@
                     password: '',
                     activeMenu: 'sys',
                     config: {},
-                    sites: []
+                    sites: [],
+                    hasUnsavedChanges: false,
+                    originalConfig: null,
+                    originalSites: null
+                }
+            },
+            computed: {
+                hasUnsavedConfigChanges() {
+                    if (!this.originalConfig) return false;
+                    return JSON.stringify(this.config) !== JSON.stringify(this.originalConfig);
+                }
+            },
+            watch: {
+                sites: {
+                    handler() { this.checkChanges(); },
+                    deep: true
+                },
+                config: {
+                    handler() { this.checkChanges(); },
+                    deep: true
                 }
             },
             methods: {
+                showToast(message, type = 'info') {
+                    const container = document.getElementById('toastContainer');
+                    const icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle', warning: 'fa-exclamation-circle' };
+                    const toast = document.createElement('div');
+                    toast.className = 'toast-item';
+                    toast.innerHTML = `<i class="fas ${icons[type]} toast-${type}"></i><span>${message}</span>`;
+                    container.appendChild(toast);
+                    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+                },
+                checkChanges() {
+                    if (this.originalConfig && JSON.stringify(this.config) !== JSON.stringify(this.originalConfig)) {
+                        this.hasUnsavedChanges = true;
+                        return;
+                    }
+                    if (this.originalSites && JSON.stringify(this.sites) !== JSON.stringify(this.originalSites)) {
+                        this.hasUnsavedChanges = true;
+                        return;
+                    }
+                    this.hasUnsavedChanges = false;
+                },
+                handleLogout() {
+                    if (this.hasUnsavedChanges) {
+                        if (!confirm('有未保存的更改，确定要退出吗？')) return;
+                    }
+                    this.isLoggedIn = false;
+                    this.hasUnsavedChanges = false;
+                },
                 async login() {
                     const res = await fetch('/api/admin/login', {
                         method: 'POST',
@@ -184,7 +243,7 @@
                         this.isLoggedIn = true;
                         this.fetchSites();
                     } else {
-                        alert('密码错误！');
+                        this.showToast('密码错误！', 'error');
                     }
                 },
                 async fetchSites() {
@@ -192,6 +251,9 @@
                     this.sites = await res.json();
                     const resConf = await fetch('/api/admin/config');
                     this.config = await resConf.json();
+                    this.originalConfig = JSON.parse(JSON.stringify(this.config));
+                    this.originalSites = JSON.parse(JSON.stringify(this.sites));
+                    this.hasUnsavedChanges = false;
                 },
                 async saveConfig() {
                     await fetch('/api/admin/config', {
@@ -199,7 +261,9 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ config: this.config })
                     });
-                    alert('保存成功！');
+                    this.originalConfig = JSON.parse(JSON.stringify(this.config));
+                    this.hasUnsavedChanges = false;
+                    this.showToast('配置保存成功', 'success');
                 },
                 async saveSites() {
                     await fetch('/api/admin/sites', {
@@ -207,7 +271,9 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ sites: this.sites })
                     });
-                    alert('保存成功！');
+                    this.originalSites = JSON.parse(JSON.stringify(this.sites));
+                    this.hasUnsavedChanges = false;
+                    this.showToast('站点保存成功', 'success');
                 },
                 addSite() {
                     this.sites.unshift({ key: 'new_site', name: '新接口', api: '', active: true });

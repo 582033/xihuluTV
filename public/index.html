@@ -45,7 +45,7 @@
 
         <!-- 移动端独立搜索框 -->
         <div class="mobile-search-bar" v-if="isMobile">
-            <input type="text" v-model="globalKeyword" @keyup.enter="execSearch" placeholder="在此输入关键字进行搜索...">
+            <input type="text" v-model="globalKeyword" @keyup.enter="execSearch" placeholder="搜索电影、电视剧、动漫...">
         </div>
 
         <!-- 主页面切换 -->
@@ -110,8 +110,7 @@
     <template id="tmpl-search">
         <div class="page-search">
             <div class="section-header">
-                <h2 class="section-title" style="margin-bottom: 20px;">包含 <span
-                        style="color:var(--accent); margin:0 8px;">"{{ searchWord }}"</span> 的搜索结果</h2>
+                <h2 class="section-title" style="margin-bottom: 20px; flex-wrap: wrap; gap: 8px;">包含 <span style="color:var(--accent);">"{{ searchWord }}"</span> 的搜索结果</h2>
             </div>
 
             <!-- 骨架屏加载 -->
@@ -222,9 +221,13 @@
                         <div v-for="source in groupSources" :key="source.site_key" class="source-tag"
                             :class="{ active: currentSource?.site_key === source.site_key }"
                             @click="switchSource(source)">
-                            <span v-if="source.loading" class="spinner-border spinner-border-sm" style="width:12px;height:12px;border-width:2px;"></span>
+                            {{ source.site_name }}
+                            <span v-if="loadingSourceKey === source.site_key" class="source-loading">
+                                <span class="loading-dot"></span>
+                                <span class="loading-dot"></span>
+                                <span class="loading-dot"></span>
+                            </span>
                             <template v-else>
-                                {{ source.site_name }}
                                 <span class="dot" :class="getLatencyClass(source.latency)"></span>
                                 <span style="font-size:12px; opacity:0.8;">{{ source.latency === 9999 ? '超时' : (source.latency ? source.latency+'ms' : '...') }}</span>
                             </template>
@@ -361,31 +364,6 @@
 
         function setupTouchScroll(rowEl) {
             if (!rowEl) return;
-            let isDown = false, startX, scrollLeft, startY, isScrolling = false;
-            const endGrab = () => { isDown = false; rowEl.style.cursor = 'grab'; rowEl.style.scrollSnapType = 'x mandatory'; };
-            rowEl.addEventListener('mousedown', (e) => {
-                isDown = true; startX = e.pageX - rowEl.offsetLeft; scrollLeft = rowEl.scrollLeft;
-                rowEl.style.cursor = 'grabbing'; rowEl.style.scrollSnapType = 'none';
-            });
-            rowEl.addEventListener('mouseleave', endGrab); rowEl.addEventListener('mouseup', endGrab);
-            rowEl.addEventListener('mousemove', (e) => {
-                if (!isDown) return; e.preventDefault();
-                rowEl.scrollLeft = scrollLeft - ((e.pageX - rowEl.offsetLeft) - startX) * 2;
-            });
-
-            rowEl.addEventListener('touchstart', (e) => {
-                isDown = true; isScrolling = false;
-                startX = e.touches[0].pageX - rowEl.offsetLeft; startY = e.touches[0].pageY;
-                scrollLeft = rowEl.scrollLeft; rowEl.style.scrollSnapType = 'none';
-            }, { passive: true });
-            rowEl.addEventListener('touchmove', (e) => {
-                if (!isDown) return;
-                const currentX = e.touches[0].pageX; const currentY = e.touches[0].pageY;
-                if (Math.abs(currentY - startY) > Math.abs(currentX - startX)) { isScrolling = true; return; }
-                if (isScrolling) return;
-                rowEl.scrollLeft = scrollLeft - ((currentX - rowEl.offsetLeft) - startX) * 2;
-            }, { passive: true });
-            rowEl.addEventListener('touchend', endGrab);
             rowEl.style.cursor = 'grab';
         }
 
@@ -515,6 +493,7 @@
                 const groupName = ref(route.query.name || '');
                 const groupSources = ref([]);
                 const currentSource = ref(null);
+                const loadingSourceKey = ref(null);
                 const episodeList = ref([]);
                 const currentUrl = ref('');
                 const loadingDetail = ref(true);
@@ -546,8 +525,8 @@
                 onUnmounted(() => { if (art) art.destroy(); }); // Destroy player
 
                 const switchSource = async (source) => {
-                    if (source.loading) return;
-                    source.loading = true;
+                    if (loadingSourceKey.value) return;
+                    loadingSourceKey.value = source.site_key;
                     currentSource.value = source;
                     loadingDetail.value = true;
                     episodeList.value = [];
@@ -556,7 +535,7 @@
                         const data = await res.json();
                         if (data.list && data.list.length > 0) parseEpisodes(data.list[0].vod_play_url);
                     } catch (e) { showToast("获取分集列表失败", "error"); }
-                    source.loading = false;
+                    loadingSourceKey.value = null;
                     loadingDetail.value = false;
                 };
 
@@ -633,7 +612,7 @@
                     return l < 500 ? 'green' : (l < 2000 ? 'yellow' : 'red');
                 };
 
-                return { groupName, groupSources, currentSource, loadingDetail, episodeList, currentUrl, switchSource, play, getLatencyClass };
+                return { groupName, groupSources, currentSource, loadingSourceKey, loadingDetail, episodeList, currentUrl, switchSource, play, getLatencyClass };
             }
         };
 

@@ -146,12 +146,11 @@ body {
 .btn-more:hover { color: var(--accent); }
 
 .card-row {
-    display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px;
-    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; cursor: grab;
+    display: flex; gap: 20px; overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: none;
     margin: 0 -10px; padding: 10px;
 }
 .card-row::-webkit-scrollbar { display: none; }
-.card-row:active { cursor: grabbing;}
 
 /* ================= 视频卡片 ================= */
 .video-card { width: 180px; min-width: 180px; scroll-snap-align: start; flex-shrink: 0; cursor: pointer; transition: 0.2s; position:relative;}
@@ -231,6 +230,13 @@ body {
 .dot.yellow { background: #e6a23c; }
 .dot.red { background: #f56c6c; }
 
+/* 节点加载动画 */
+.source-loading { display: inline-flex; gap: 3px; margin-left: 6px; }
+.loading-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.6; animation: loadingPulse 1s infinite ease-in-out; }
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes loadingPulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+
 /* ================= 移动端响应式 ================= */
 @media (max-width: 768px) {
     .navbar-top { padding: 0 15px; height: 56px;}
@@ -251,7 +257,7 @@ body {
     
     .video-card { width: 120px; min-width: 120px; }
     .result-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px;}
-    .section-title { font-size: 18px; }
+    .section-title { font-size: 18px; flex-wrap: wrap; gap: 4px; }
     
     .detail-box { padding: 15px; border-radius: 8px;}
     .d-title { font-size: 20px; margin-bottom: 6px;}

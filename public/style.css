@@ -200,6 +200,7 @@ body {
     width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; 
     margin-bottom: 25px; position: relative;
 }
+.player-wrapper video { object-fit: contain; }
 .player-wrapper #dplayer { position: absolute; top:0; left:0; right:0; bottom:0; width:100% !important; height:100% !important; }
 
 .panel-sub-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;}
